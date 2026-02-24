@@ -85,8 +85,8 @@ const TeamSection = () => (
               <p className="text-sm text-muted-foreground">{m.desc}</p>
             </div>
 
-            {/* Hover overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5">
+            {/* Overlay - always visible */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent flex items-end p-5">
               <div>
                 <h3 className="font-display text-lg font-bold text-foreground mb-1">{m.name}</h3>
                 <p className={`text-sm font-semibold ${m.roleColor}`}>{m.role}</p>
