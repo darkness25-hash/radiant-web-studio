@@ -11,6 +11,7 @@ const members = [
     desc: "Focused on endurance training analysis and athlete interview coordination.",
     img: teamMember2,
     roleColor: "text-accent",
+    imgPosition: "object-top",
   },
   {
     name: "Lead Presenter",
@@ -75,7 +76,7 @@ const TeamSection = () => (
               <img
                 src={m.img}
                 alt={m.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${m.imgPosition || "object-center"}`}
               />
             </div>
 
