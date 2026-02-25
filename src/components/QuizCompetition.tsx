@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Users, Play, ChevronRight, RotateCcw, Volume2, VolumeX, Lightbulb, CheckCircle2, XCircle, Zap, Star } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -68,39 +68,68 @@ const introSpeech = `🎙️ Ladies and gentlemen, welcome to the ULTIMATE Sport
 const closingSpeech = `🎙️ What an incredible competition! Every team showed amazing knowledge and sportsmanship today. Remember — in sports and in life, the real victory is in the effort you give. Until next time, stay active, stay curious, and keep competing! Thank you all for playing! 🏆`;
 
 /* ─── Phases ─── */
-type Phase = "intro" | "setup" | "playing" | "results" | "winner";
+type Phase = "intro" | "ready" | "playing" | "waiting" | "review" | "results" | "winner";
+
+// Track each group's answers (no reveal until all done)
+type GroupAnswers = number[][]; // groupAnswers[groupIdx][questionIdx] = selected option
 
 const QuizCompetition = () => {
   const [phase, setPhase] = useState<Phase>("intro");
   const [groupQuestions, setGroupQuestions] = useState<Question[][]>([]);
   const [activeGroup, setActiveGroup] = useState(0);
   const [qIdx, setQIdx] = useState(0);
-  const [scores, setScores] = useState([0, 0, 0, 0]);
   const [selected, setSelected] = useState<number | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [groupReady, setGroupReady] = useState([false, false, false, false]);
   const [groupDone, setGroupDone] = useState([false, false, false, false]);
+  const [groupAnswers, setGroupAnswers] = useState<GroupAnswers>([[], [], [], []]);
+  const [reviewGroup, setReviewGroup] = useState(0);
+
+  const scores = groupAnswers.map((answers, gi) =>
+    answers.reduce((sum, ans, qi) => sum + (groupQuestions[gi]?.[qi]?.answer === ans ? 1 : 0), 0)
+  );
 
   const startCompetition = useCallback(() => {
     const dist = distributeQuestions();
     setGroupQuestions(dist);
-    setScores([0, 0, 0, 0]);
     setActiveGroup(0);
     setQIdx(0);
     setSelected(null);
     setShowHint(false);
+    setGroupReady([false, false, false, false]);
     setGroupDone([false, false, false, false]);
-    setPhase("setup");
+    setGroupAnswers([[], [], [], []]);
+    setPhase("ready");
   }, []);
+
+  const allReady = groupReady.every(Boolean);
+  const allDone = groupDone.every(Boolean);
+
+  const handleReady = (i: number) => {
+    setGroupReady((r) => { const n = [...r]; n[i] = true; return n; });
+  };
+
+  const startGroupPlay = (i: number) => {
+    setActiveGroup(i);
+    setQIdx(0);
+    setSelected(null);
+    setShowHint(false);
+    setPhase("playing");
+  };
 
   const currentQ = groupQuestions[activeGroup]?.[qIdx];
 
   const handleAnswer = (i: number) => {
     if (selected !== null) return;
     setSelected(i);
-    if (currentQ && i === currentQ.answer) {
-      setScores((s) => { const n = [...s]; n[activeGroup] += 1; return n; });
-    }
+    // Record answer
+    setGroupAnswers((prev) => {
+      const n = prev.map((a) => [...a]);
+      n[activeGroup].push(i);
+      return n;
+    });
+    // Move to next question after short delay
     setTimeout(() => {
       const gq = groupQuestions[activeGroup];
       if (qIdx < gq.length - 1) {
@@ -108,17 +137,11 @@ const QuizCompetition = () => {
         setSelected(null);
         setShowHint(false);
       } else {
+        // Group finished
         setGroupDone((d) => { const n = [...d]; n[activeGroup] = true; return n; });
-        if (activeGroup < 3) {
-          setActiveGroup((g) => g + 1);
-          setQIdx(0);
-          setSelected(null);
-          setShowHint(false);
-        } else {
-          setPhase("results");
-        }
+        setPhase("waiting");
       }
-    }, 1800);
+    }, 600);
   };
 
   const winnerIdx = scores.indexOf(Math.max(...scores));
@@ -181,40 +204,91 @@ const QuizCompetition = () => {
             </motion.div>
           )}
 
-          {/* ════════ SETUP / GROUP SELECT ════════ */}
-          {phase === "setup" && (
-            <motion.div key="setup" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto">
+          {/* ════════ READY CHECK — All groups must click Start ════════ */}
+          {phase === "ready" && (
+            <motion.div key="ready" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto">
               <div className="bg-card border border-border rounded-3xl p-8">
-                <h3 className="font-display text-xl font-bold mb-6 text-center">Select Active Group</h3>
+                <h3 className="font-display text-xl md:text-2xl font-bold mb-2 text-center">Get Ready!</h3>
+                <p className="text-muted-foreground text-center text-sm mb-8">
+                  Each group must click <strong className="text-primary">Ready</strong> before the quiz begins.
+                </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                   {groupNames.map((name, i) => (
                     <motion.button
                       key={i}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => { setActiveGroup(i); setQIdx(0); setSelected(null); setShowHint(false); setPhase("playing"); }}
-                      disabled={groupDone[i]}
-                      className={`p-6 rounded-2xl border border-border text-center transition-all ${groupDone[i] ? "opacity-40 cursor-not-allowed" : "hover:border-primary/50 cursor-pointer"}`}
+                      whileHover={!groupReady[i] ? { scale: 1.05 } : {}}
+                      whileTap={!groupReady[i] ? { scale: 0.95 } : {}}
+                      onClick={() => handleReady(i)}
+                      disabled={groupReady[i]}
+                      className={`p-6 rounded-2xl border text-center transition-all ${
+                        groupReady[i]
+                          ? "border-secondary bg-secondary/10 cursor-default"
+                          : "border-border hover:border-primary/50 cursor-pointer"
+                      }`}
                     >
                       <div className="text-3xl mb-2">{groupEmojis[i]}</div>
                       <div className="font-display font-bold text-sm">{name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{groupQuestions[i]?.length} Qs</div>
-                      {groupDone[i] && <div className="text-xs text-secondary mt-1 font-bold">✓ Done ({scores[i]} pts)</div>}
+                      {groupReady[i] ? (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center justify-center gap-1 mt-2 text-secondary text-xs font-bold">
+                          <CheckCircle2 size={14} /> Ready!
+                        </motion.div>
+                      ) : (
+                        <div className="mt-2 text-xs text-muted-foreground">Tap to ready up</div>
+                      )}
                     </motion.button>
                   ))}
                 </div>
-                {groupDone.every(Boolean) && (
-                  <div className="text-center">
-                    <button onClick={() => setPhase("results")} className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-full font-display font-bold hover:shadow-lg transition-all">
-                      View Results <ChevronRight className="inline ml-1" size={18} />
-                    </button>
-                  </div>
+
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {groupReady.filter(Boolean).length}/4 groups ready
+                  </p>
+                  {allReady && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                      <p className="text-secondary font-bold mb-4 text-lg">✅ All groups are ready!</p>
+                      <p className="text-xs text-muted-foreground mb-4">Select a group to start their round. Each group answers independently. Answers are hidden until everyone finishes!</p>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Group select — only after all ready */}
+                {allReady && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4">
+                    <h4 className="font-display font-bold text-center mb-4 text-sm text-muted-foreground uppercase tracking-wider">Select group to play</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {groupNames.map((name, i) => (
+                        <button
+                          key={i}
+                          onClick={() => startGroupPlay(i)}
+                          disabled={groupDone[i]}
+                          className={`p-4 rounded-xl border text-center transition-all ${
+                            groupDone[i]
+                              ? "opacity-40 cursor-not-allowed border-secondary bg-secondary/5"
+                              : "border-primary/30 hover:border-primary hover:bg-primary/5 cursor-pointer"
+                          }`}
+                        >
+                          <span className="text-xl">{groupEmojis[i]}</span>
+                          <div className="font-display font-bold text-xs mt-1">{name}</div>
+                          {groupDone[i] && <div className="text-xs text-secondary mt-1 font-bold">✓ Done</div>}
+                          {!groupDone[i] && <div className="text-xs text-primary mt-1">▶ Play</div>}
+                        </button>
+                      ))}
+                    </div>
+
+                    {allDone && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center mt-6">
+                        <button onClick={() => setPhase("review")} className="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-full font-display font-bold text-lg hover:shadow-lg transition-all">
+                          📊 Reveal Answers & Results <ChevronRight className="inline ml-1" size={18} />
+                        </button>
+                      </motion.div>
+                    )}
+                  </motion.div>
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* ════════ PLAYING ════════ */}
+          {/* ════════ PLAYING (no answer reveal!) ════════ */}
           {phase === "playing" && currentQ && (
             <motion.div key={`play-${activeGroup}-${qIdx}`} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="max-w-3xl mx-auto">
               <div className="bg-card border border-border rounded-3xl overflow-hidden">
@@ -224,9 +298,8 @@ const QuizCompetition = () => {
                     <span className="text-2xl">{groupEmojis[activeGroup]}</span>
                     <span className="font-display font-bold">{groupNames[activeGroup]}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-primary-foreground/90 text-sm">
-                    <span>Q {qIdx + 1}/{groupQuestions[activeGroup].length}</span>
-                    <span className="font-bold">Score: {scores[activeGroup]}</span>
+                  <div className="text-primary-foreground/90 text-sm">
+                    Q {qIdx + 1}/{groupQuestions[activeGroup].length}
                   </div>
                 </div>
 
@@ -243,15 +316,14 @@ const QuizCompetition = () => {
                   {/* Question */}
                   <p className="text-lg md:text-xl font-semibold text-foreground mb-6">{currentQ.question}</p>
 
-                  {/* Options */}
+                  {/* Options — NO correct/wrong highlighting */}
                   <div className="space-y-3 mb-6">
                     {currentQ.options.map((opt, i) => {
                       const letter = ["A", "B", "C", "D"][i];
-                      let cls = "border-border bg-muted/20 hover:bg-muted/40 hover:border-muted-foreground/30";
-                      if (selected !== null) {
-                        if (i === currentQ.answer) cls = "border-secondary bg-secondary/20";
-                        else if (i === selected) cls = "border-destructive bg-destructive/20";
-                      }
+                      const isSelected = selected === i;
+                      const cls = isSelected
+                        ? "border-primary bg-primary/20"
+                        : "border-border bg-muted/20 hover:bg-muted/40 hover:border-muted-foreground/30";
                       return (
                         <motion.button
                           key={i}
@@ -263,21 +335,11 @@ const QuizCompetition = () => {
                         >
                           <span className="font-display font-bold text-muted-foreground text-sm w-6">{letter}</span>
                           <span className="text-sm md:text-base">{opt}</span>
-                          {selected !== null && i === currentQ.answer && <CheckCircle2 className="ml-auto text-secondary" size={20} />}
-                          {selected !== null && i === selected && i !== currentQ.answer && <XCircle className="ml-auto text-destructive" size={20} />}
+                          {isSelected && <span className="ml-auto text-xs text-primary font-bold">Selected</span>}
                         </motion.button>
                       );
                     })}
                   </div>
-
-                  {/* Explanation after answer */}
-                  <AnimatePresence>
-                    {selected !== null && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-muted/30 border border-border rounded-xl p-4 mb-4">
-                        <p className="text-sm text-muted-foreground"><strong className="text-foreground">Explanation:</strong> {currentQ.explanation}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   {/* Hint */}
                   {selected === null && (
@@ -294,12 +356,89 @@ const QuizCompetition = () => {
                   </AnimatePresence>
                 </div>
               </div>
+            </motion.div>
+          )}
 
-              {/* Back to group select */}
-              <div className="text-center mt-4">
-                <button onClick={() => setPhase("setup")} className="text-xs text-muted-foreground hover:text-foreground transition-colors underline">
-                  ← Back to Group Selection
+          {/* ════════ WAITING — group finished, go back to pick next ════════ */}
+          {phase === "waiting" && (
+            <motion.div key="waiting" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto">
+              <div className="bg-card border border-border rounded-3xl p-8 text-center">
+                <div className="text-5xl mb-4">{groupEmojis[activeGroup]}</div>
+                <h3 className="font-display text-2xl font-bold mb-2">{groupNames[activeGroup]} finished!</h3>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Answers are locked. Results will be revealed once <strong>all groups</strong> have finished.
+                </p>
+                <button
+                  onClick={() => setPhase("ready")}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full font-display font-bold hover:shadow-lg transition-all"
+                >
+                  <Users size={18} /> Back to Groups
                 </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ════════ REVIEW — Show all answers for all groups ════════ */}
+          {phase === "review" && (
+            <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto">
+              <div className="bg-card border border-border rounded-3xl p-8">
+                <h3 className="font-display text-2xl font-bold mb-6 text-center">📋 Answer Review</h3>
+
+                {/* Group tabs */}
+                <div className="flex gap-2 mb-6 justify-center flex-wrap">
+                  {groupNames.map((name, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setReviewGroup(i)}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                        reviewGroup === i
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      {groupEmojis[i]} {name} ({scores[i]}/{groupQuestions[i]?.length})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Questions + answers for selected group */}
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                  {groupQuestions[reviewGroup]?.map((q, qi) => {
+                    const userAnswer = groupAnswers[reviewGroup][qi];
+                    const isCorrect = userAnswer === q.answer;
+                    return (
+                      <motion.div
+                        key={qi}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: qi * 0.1 }}
+                        className={`p-4 rounded-2xl border ${isCorrect ? "border-secondary/50 bg-secondary/5" : "border-destructive/50 bg-destructive/5"}`}
+                      >
+                        <div className="flex items-start gap-3 mb-2">
+                          {isCorrect ? <CheckCircle2 className="text-secondary mt-0.5 shrink-0" size={18} /> : <XCircle className="text-destructive mt-0.5 shrink-0" size={18} />}
+                          <p className="text-sm font-semibold text-foreground">{qi + 1}. {q.question}</p>
+                        </div>
+                        <div className="ml-7 space-y-1">
+                          {!isCorrect && (
+                            <p className="text-xs text-destructive">
+                              Your answer: <strong>{q.options[userAnswer]}</strong>
+                            </p>
+                          )}
+                          <p className="text-xs text-secondary">
+                            Correct answer: <strong>{q.options[q.answer]}</strong>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{q.explanation}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <div className="text-center mt-8">
+                  <button onClick={() => setPhase("results")} className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-full font-display font-bold hover:shadow-lg transition-all">
+                    📊 View Scoreboard <ChevronRight className="inline ml-1" size={18} />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -333,7 +472,10 @@ const QuizCompetition = () => {
                       </motion.div>
                     ))}
                 </div>
-                <div className="text-center">
+                <div className="flex gap-4 justify-center flex-wrap">
+                  <button onClick={() => setPhase("review")} className="px-6 py-3 border border-border rounded-full font-display font-bold text-sm hover:bg-muted/30 transition-all">
+                    📋 Review Answers
+                  </button>
                   <button onClick={() => setPhase("winner")} className="px-8 py-4 bg-gradient-to-r from-primary via-destructive to-secondary text-primary-foreground rounded-full font-display font-bold text-lg hover:shadow-lg transition-all animate-pulse">
                     🏆 Announce Winner
                   </button>
@@ -346,7 +488,6 @@ const QuizCompetition = () => {
           {phase === "winner" && (
             <motion.div key="winner" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", damping: 15 }} className="max-w-3xl mx-auto">
               <div className="bg-card border border-primary/30 rounded-3xl p-8 md:p-12 text-center relative overflow-hidden">
-                {/* Confetti-like particles */}
                 {[...Array(12)].map((_, i) => (
                   <motion.div
                     key={i}
@@ -376,7 +517,6 @@ const QuizCompetition = () => {
                   <p className="text-xs text-muted-foreground mt-3">🔊 Play crowd cheering sound effect now!</p>
                 </div>
 
-                {/* Closing speech */}
                 <div className="bg-muted/20 border border-border rounded-2xl p-6 mb-8 text-left max-w-xl mx-auto">
                   <p className="text-xs text-muted-foreground mb-2 font-bold uppercase tracking-wider">🎙️ Closing Speech</p>
                   <p className="text-muted-foreground leading-relaxed italic text-sm">"{closingSpeech}"</p>
