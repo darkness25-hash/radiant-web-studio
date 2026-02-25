@@ -10,6 +10,7 @@ const links = [
   { href: "#sambo", label: "Sambo" },
   { href: "#videos", label: "Interviews" },
   { href: "#interactive", label: "Play" },
+  { href: "#quiz", label: "Quiz" },
 ];
 
 const Navbar = () => {
