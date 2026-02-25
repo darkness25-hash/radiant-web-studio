@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
 const links = [
+  { href: "#backstage", label: "Backstage" },
   { href: "#about", label: "About" },
   { href: "#team", label: "Team" },
   { href: "#running", label: "Running" },
