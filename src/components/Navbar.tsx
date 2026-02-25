@@ -7,6 +7,7 @@ const links = [
   { href: "#team", label: "Team" },
   { href: "#running", label: "Running" },
   { href: "#football", label: "Football" },
+  { href: "#sambo", label: "Sambo" },
   { href: "#videos", label: "Interviews" },
   { href: "#interactive", label: "Play" },
 ];
