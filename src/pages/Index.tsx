@@ -7,6 +7,7 @@ import FootballSection from "@/components/FootballSection";
 import SamboSection from "@/components/SamboSection";
 import VideosSection from "@/components/VideosSection";
 import InteractiveSection from "@/components/InteractiveSection";
+import QuizCompetition from "@/components/QuizCompetition";
 import Footer from "@/components/Footer";
 
 const Index = () => (
@@ -21,6 +22,7 @@ const Index = () => (
       <SamboSection />
       <VideosSection />
       <InteractiveSection />
+      <QuizCompetition />
     </main>
     <Footer />
   </>
