@@ -1,26 +1,34 @@
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { Film } from "lucide-react";
 
 const videos = [
   {
-    title: "The Runner's Mindset",
-    desc: "Interview with marathon runner discussing training discipline and mental preparation.",
-    tag: "Running",
-    duration: "8:45 min",
+    title: "Training Day Highlights",
+    desc: "Behind the scenes of an intense training session with our athletes.",
+    tag: "Training",
     tagColor: "bg-primary/20 text-primary",
-    img: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&auto=format&fit=crop&q=80",
-    hoverColor: "hover:text-primary",
-    shadow: "shadow-primary/10",
+    driveId: "1b8WMEUFDn_noSztcYcLFLbx4V3yL6mac",
   },
   {
-    title: "Tactical Deep Dive",
-    desc: "Coach explains modern football formations and team dynamics.",
-    tag: "Football",
-    duration: "12:20 min",
+    title: "Match Day Preparation",
+    desc: "How our team prepares mentally and physically before competition.",
+    tag: "Competition",
     tagColor: "bg-secondary/20 text-secondary",
-    img: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&auto=format&fit=crop&q=80",
-    hoverColor: "hover:text-secondary",
-    shadow: "shadow-secondary/10",
+    driveId: "1Q_z9BtSpun093Bw8Ye1VsQX0JOJOZHVl",
+  },
+  {
+    title: "Athlete Spotlight",
+    desc: "An exclusive interview with one of our top-performing athletes.",
+    tag: "Interview",
+    tagColor: "bg-accent/20 text-accent",
+    driveId: "14HAMm_J9wuVI4skUWsGeX2vflGmntIfO",
+  },
+  {
+    title: "Season Recap",
+    desc: "A look back at the highlights and memorable moments of the season.",
+    tag: "Recap",
+    tagColor: "bg-primary/20 text-primary",
+    driveId: "1e8T_ue_K08dHTRC6QIatDdE3eACYV3Q8",
   },
 ];
 
@@ -42,26 +50,29 @@ const VideosSection = () => (
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
         {videos.map((v, i) => (
           <motion.div
-            key={v.title}
+            key={v.driveId}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: i * 0.2 }}
+            transition={{ delay: i * 0.15 }}
             className="group"
           >
-            <div className={`relative rounded-2xl overflow-hidden mb-4 shadow-2xl ${v.shadow} aspect-video`}>
-              <img src={v.img} alt={v.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-50 transition-opacity" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 bg-foreground/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Play className="w-6 h-6 text-background ml-1" />
-                </div>
-              </div>
+            <div className="relative rounded-2xl overflow-hidden mb-4 shadow-2xl shadow-accent/10 border border-border aspect-video">
+              <iframe
+                src={`https://drive.google.com/file/d/${v.driveId}/preview`}
+                className="w-full h-full"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title={v.title}
+              />
             </div>
-            <h3 className={`text-xl font-bold mb-2 transition-colors ${v.hoverColor}`}>{v.title}</h3>
+            <h3 className="text-xl font-bold mb-2">{v.title}</h3>
             <p className="text-muted-foreground text-sm">{v.desc}</p>
             <div className="flex gap-2 mt-3">
               <span className={`text-xs px-2 py-1 rounded ${v.tagColor}`}>{v.tag}</span>
-              <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded">{v.duration}</span>
+              <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded flex items-center gap-1">
+                <Film className="w-3 h-3" /> Video
+              </span>
             </div>
           </motion.div>
         ))}
